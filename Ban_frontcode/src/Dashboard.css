@@ -1,0 +1,216 @@
+/* ── Dashboard wrapper ── */
+.db-page {
+  font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  /* background, min-height, padding 모두 제거 */
+  /* App.js가 이미 배경색과 패딩을 제공하므로 여기서는 불필요 */
+}
+
+/* ── Header ── */
+.db-header {
+  background: #e9e9e9;
+  border-radius: 16px;
+  text-align: center;
+  padding: 22px 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+.db-title {
+  font-size: 60px;
+  font-weight: 800;
+  color: #1A1A1A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  line-height: 1;
+}
+.db-title svg { flex-shrink: 0; }
+
+/* ── Layout ── */
+.db-main { display: flex; gap: 16px; align-items: flex-start; }
+
+/* ── Left panel ── */
+.db-left {
+  width: 285px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Card ── */
+.db-card {
+  background: white;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+
+/* ── Toggle row ── */
+.db-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.db-toggle-row:last-of-type { margin-bottom: 0; }
+
+/* ── Toggle switch ── */
+.db-toggle-switch {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  flex-shrink: 0;
+}
+.db-toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+.db-toggle-track {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #ccc;
+  border-radius: 26px;
+  cursor: pointer;
+  transition: background 0.25s;
+}
+.db-toggle-track::before {
+  content: '';
+  position: absolute;
+  width: 20px; height: 20px;
+  left: 3px; top: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.25s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.db-toggle-switch input:checked + .db-toggle-track { background: #1A1A1A; }
+.db-toggle-switch input:checked + .db-toggle-track::before { transform: translateX(20px); }
+
+/* ── Legend section ── */
+.db-legend-section {
+  margin-top: 14px;
+  border-top: 1px solid #F0EEEB;
+  padding-top: 12px;
+}
+.db-legend-label { font-size: 12px; color: #888; margin-bottom: 10px; font-weight: 500; }
+.db-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.db-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 20px;
+  border: 1.5px solid #E0DEDB;
+  user-select: none;
+  transition: all 0.2s;
+  background: white;
+  font-weight: 500;
+}
+.db-chip-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+.db-chip.active  { border-color: currentColor; }
+.db-chip.inactive { opacity: 0.45; border-color: #E0DEDB; }
+
+/* ── Score card ── */
+.db-score-title { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+.db-score-sub   { font-size: 12px; color: #999; margin-bottom: 10px; }
+.db-dog-area    { display: flex; justify-content: center; align-items: center; padding: 8px 0; }
+
+.db-score-result {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border-left: 3px solid #E24B4A;
+}
+.db-res-row      { font-size: 13px; margin-bottom: 3px; }
+.db-res-row:last-child { margin-bottom: 0; }
+.db-res-label    { color: #888; }
+.db-res-bad      { color: #E24B4A; font-weight: 700; }
+.db-res-good     { color: #2E7D32; font-weight: 700; }
+
+/* ── Summary cards ── */
+.db-summary-cards { display: flex; gap: 8px; }
+.db-s-card {
+  flex: 1;
+  background: white;
+  border-radius: 10px;
+  padding: 10px 8px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+.db-s-lbl { font-size: 11px; color: #999; margin-bottom: 5px; font-weight: 500; }
+.db-s-val { font-size: 15px; font-weight: 700; color: #1A1A1A; }
+
+/* ── Right panel ── */
+.db-right {
+  flex: 1;
+  background: white;
+  border-radius: 14px;
+  padding: 16px;
+  min-width: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+.db-chart-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.db-icon-btn {
+  width: 32px; height: 32px;
+  border: 1px solid #DDD;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: white;
+  color: #555;
+  transition: background 0.15s;
+}
+.db-icon-btn:hover { background: #F5F3F0; }
+
+.db-chart-scroll { overflow-x: auto; }
+.db-chart-inner  { position: relative; min-width: 580px; height: 520px; }
+
+/* ── Star annotation ── */
+.db-star {
+  position: absolute;
+  text-align: center;
+  pointer-events: none;
+}
+.db-star-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1A1A1A;
+  line-height: 1.3;
+  margin-top: 2px;
+  background: rgba(255,255,255,0.85);
+  padding: 2px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* ── Bottom legend ── */
+.db-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  justify-content: center;
+  margin-top: 14px;
+  padding: 12px 0 4px;
+  border-top: 1px solid #F0EEEB;
+  font-size: 13px;
+  font-weight: 500;
+}
+.db-cl-item    { display: flex; align-items: center; gap: 6px; }
+.db-cl-circle  { width: 13px; height: 13px; border-radius: 50%; }
+.db-cl-diamond { width: 12px; height: 12px; transform: rotate(45deg); border-radius: 2px; }
