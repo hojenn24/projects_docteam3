@@ -24,7 +24,7 @@ jobs:
       # 2. 컨테이너 실행
       - name: Run backend container
         run: |
-          docker run -d --name backend -p 3000:3000 limseongin/paw-backend:3.0
+          docker run -d --name backend -p 3000:8000 limseongin/paw-backend:3.0
 
       - name: Run frontend container
         run: |
