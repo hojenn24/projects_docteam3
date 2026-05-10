@@ -1,6 +1,6 @@
 name: Docker CI
 
-on: 
+on:
   push:
     branches: [main]
   pull_request:
@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,11 +23,8 @@ jobs:
       - name: Pull backend image
         run: docker pull limseongin/paw-backend:3.0
 
-      - name: Start services
+      - name: Run compose
         run: docker compose up -d
 
-      - name: Check running containers
+      - name: Check containers
         run: docker ps
-
-      - name: Show logs
-        run: docker logs
