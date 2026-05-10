@@ -35,7 +35,7 @@ jobs:
         run: |
           docker run -d \
             --name backend \
-            -p 3000:8000 \
+            -p 8000:8000 \
             --env MONGO_HOST=host.docker.internal \
             --env MONGO_PORT=27017 \
             --env MONGO_DB=pet_data \
@@ -67,7 +67,7 @@ jobs:
       - name: Test backend health (retry)
         run: |
           for i in {1..15}; do
-            curl -f http://localhost:3000/api/health && exit 0
+            curl -f http://localhost:8000/api/health && exit 0
             echo "backend not ready yet... retry $i"
             sleep 3
           done
