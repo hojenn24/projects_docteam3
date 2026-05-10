@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 코드 체크아웃 (현재는 큰 의미 없지만 유지)
+      # 1. 코드 체크아웃
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -31,46 +31,46 @@ jobs:
         run: |
           docker run -d --name frontend -p 8080:80 limseongin/paw-frontend:2.0
 
-      # 4. 서버 시작 대기 (핵심)
-      - name: Wait for services to start
-        run: sleep 10
+      # 4. 컨테이너 상태 먼저 확인 (중요)
+      - name: Check container status
+        run: docker ps -a
 
-      # 5. 로그 확인 (디버깅 핵심)
+      # 5. 로그 먼저 확인 (진짜 핵심)
       - name: Backend logs
-        run: docker logs backend
+        run: docker logs backend || true
 
       - name: Frontend logs
-        run: docker logs frontend
+        run: docker logs frontend || true
 
-      # 6. 상태 확인
-      - name: Check running containers
-        run: docker ps
+      # 6. 서버 뜨는 시간 확보
+      - name: Wait for services
+        run: sleep 10
 
-      # 7. 헬스체크 (retry 방식 - 안정성 핵심)
+      # 7. backend 헬스체크 (retry + timeout 보호)
       - name: Test backend health (retry)
         run: |
-          for i in {1..10}; do
+          for i in {1..15}; do
             curl -f http://localhost:3000 && exit 0
-            echo "backend not ready yet... retrying"
+            echo "backend not ready yet... retry $i"
             sleep 3
           done
+          echo "backend failed"
           exit 1
 
+      # 8. frontend 헬스체크
       - name: Test frontend health (retry)
         run: |
-          for i in {1..10}; do
+          for i in {1..15}; do
             curl -f http://localhost:8080 && exit 0
-            echo "frontend not ready yet... retrying"
+            echo "frontend not ready yet... retry $i"
             sleep 3
           done
+          echo "frontend failed"
           exit 1
 
-      # 8. 정리 (항상 실행)
+      # 9. 실패해도 무조건 정리
       - name: Stop containers
         if: always()
         run: |
           docker stop backend frontend || true
           docker rm backend frontend || true
-
-      - name: Inspect container
-        run: docker ps -a
