@@ -11,17 +11,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. 코드 체크아웃 (현재는 큰 의미 없지만 유지)
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 1. 이미지 pull
-      - name: Pull frontend image
-        run: docker pull limseongin/paw-frontend:2.0
-
+      # 2. 이미지 pull
       - name: Pull backend image
         run: docker pull limseongin/paw-backend:3.0
 
-      # 2. 컨테이너 실행 (CI용으로 백그라운드)
+      - name: Pull frontend image
+        run: docker pull limseongin/paw-frontend:2.0
+
+      # 3. 컨테이너 실행
       - name: Run backend container
         run: |
           docker run -d --name backend -p 3000:3000 limseongin/paw-backend:3.0
@@ -30,20 +31,43 @@ jobs:
         run: |
           docker run -d --name frontend -p 8080:80 limseongin/paw-frontend:2.0
 
-      # 3. 상태 확인
+      # 4. 서버 시작 대기 (핵심)
+      - name: Wait for services to start
+        run: sleep 10
+
+      # 5. 로그 확인 (디버깅 핵심)
+      - name: Backend logs
+        run: docker logs backend
+
+      - name: Frontend logs
+        run: docker logs frontend
+
+      # 6. 상태 확인
       - name: Check running containers
         run: docker ps
 
-      # 4. 간단 헬스체크 (예: HTTP 응답 확인)
-      - name: Test backend health
-        run: curl -f http://localhost:3000 || exit 1
+      # 7. 헬스체크 (retry 방식 - 안정성 핵심)
+      - name: Test backend health (retry)
+        run: |
+          for i in {1..10}; do
+            curl -f http://localhost:3000 && exit 0
+            echo "backend not ready yet... retrying"
+            sleep 3
+          done
+          exit 1
 
-      - name: Test frontend health
-        run: curl -f http://localhost:8080 || exit 1
+      - name: Test frontend health (retry)
+        run: |
+          for i in {1..10}; do
+            curl -f http://localhost:8080 && exit 0
+            echo "frontend not ready yet... retrying"
+            sleep 3
+          done
+          exit 1
 
-      # 5. 정리
+      # 8. 정리 (항상 실행)
       - name: Stop containers
         if: always()
         run: |
-          docker stop backend frontend
-          docker rm backend frontend
+          docker stop backend frontend || true
+          docker rm backend frontend || true
