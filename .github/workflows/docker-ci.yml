@@ -11,18 +11,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 코드 체크아웃
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 이미지 pull
+      # 1. 이미지 pull
       - name: Pull backend image
         run: docker pull limseongin/paw-backend:3.0
 
       - name: Pull frontend image
         run: docker pull limseongin/paw-frontend:2.0
 
-      # 3. 컨테이너 실행
+      # 2. 컨테이너 실행
       - name: Run backend container
         run: |
           docker run -d --name backend -p 3000:3000 limseongin/paw-backend:3.0
@@ -31,44 +30,51 @@ jobs:
         run: |
           docker run -d --name frontend -p 8080:80 limseongin/paw-frontend:2.0
 
-      # 4. 컨테이너 상태 먼저 확인 (중요)
-      - name: Check container status
-        run: docker ps -a
+      # 🔥 3. 상태 확인 (여기부터 중요)
+      - name: Check container status (IMPORTANT)
+        run: |
+          docker ps -a
+          echo "---- backend inspect ----"
+          docker inspect backend || true
 
-      # 5. 로그 먼저 확인 (진짜 핵심)
-      - name: Backend logs
-        run: docker logs backend || true
+      # 🔥 4. 로그 확인 (여기가 핵심 원인)
+      - name: Backend logs (CHECK THIS FIRST)
+        run: |
+          echo "===== BACKEND LOG START ====="
+          docker logs backend || true
+          echo "===== BACKEND LOG END ====="
 
       - name: Frontend logs
-        run: docker logs frontend || true
+        run: |
+          echo "===== FRONTEND LOG START ====="
+          docker logs frontend || true
+          echo "===== FRONTEND LOG END ====="
 
-      # 6. 서버 뜨는 시간 확보
+      # 5. 서버 대기
       - name: Wait for services
         run: sleep 10
 
-      # 7. backend 헬스체크 (retry + timeout 보호)
+      # 6. backend 테스트
       - name: Test backend health (retry)
         run: |
           for i in {1..15}; do
-            curl -f http://localhost:3000 && exit 0
+            curl -v http://localhost:3000 && exit 0
             echo "backend not ready yet... retry $i"
             sleep 3
           done
-          echo "backend failed"
           exit 1
 
-      # 8. frontend 헬스체크
+      # 7. frontend 테스트
       - name: Test frontend health (retry)
         run: |
           for i in {1..15}; do
-            curl -f http://localhost:8080 && exit 0
+            curl -v http://localhost:8080 && exit 0
             echo "frontend not ready yet... retry $i"
             sleep 3
           done
-          echo "frontend failed"
           exit 1
 
-      # 9. 실패해도 무조건 정리
+      # 8. 정리
       - name: Stop containers
         if: always()
         run: |
