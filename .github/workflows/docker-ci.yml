@@ -11,72 +11,81 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. 코드 체크아웃
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 1. 이미지 pull
+      # 2. Docker 이미지 pull
       - name: Pull backend image
         run: docker pull limseongin/paw-backend:3.0
 
       - name: Pull frontend image
         run: docker pull limseongin/paw-frontend:2.0
 
-      # 2. 컨테이너 실행
+      # 3. MongoDB 실행 (🔥 핵심 추가)
+      - name: Run MongoDB
+        run: |
+          docker run -d \
+            --name mongo \
+            -p 27017:27017 \
+            mongo:7
+
+      # 4. Backend 실행 (Mongo 연결 포함)
       - name: Run backend container
         run: |
-          docker run -d --name backend -p 3000:8000 limseongin/paw-backend:3.0
+          docker run -d \
+            --name backend \
+            -p 3000:8000 \
+            --env MONGO_HOST=host.docker.internal \
+            --env MONGO_PORT=27017 \
+            --env MONGO_DB=pet_data \
+            limseongin/paw-backend:3.0
 
+      # 5. Frontend 실행
       - name: Run frontend container
         run: |
-          docker run -d --name frontend -p 8080:80 limseongin/paw-frontend:2.0
+          docker run -d \
+            --name frontend \
+            -p 8080:80 \
+            limseongin/paw-frontend:2.0
 
-      # 🔥 3. 상태 확인 (여기부터 중요)
-      - name: Check container status (IMPORTANT)
-        run: |
-          docker ps -a
-          echo "---- backend inspect ----"
-          docker inspect backend || true
+      # 6. 상태 확인 (디버깅 핵심)
+      - name: Check containers
+        run: docker ps -a
 
-      # 🔥 4. 로그 확인 (여기가 핵심 원인)
-      - name: Backend logs (CHECK THIS FIRST)
-        run: |
-          echo "===== BACKEND LOG START ====="
-          docker logs backend || true
-          echo "===== BACKEND LOG END ====="
+      - name: Backend logs
+        run: docker logs backend || true
 
-      - name: Frontend logs
-        run: |
-          echo "===== FRONTEND LOG START ====="
-          docker logs frontend || true
-          echo "===== FRONTEND LOG END ====="
+      - name: Mongo logs
+        run: docker logs mongo || true
 
-      # 5. 서버 대기
+      # 7. 서버 대기
       - name: Wait for services
-        run: sleep 10
+        run: sleep 15
 
-      # 6. backend 테스트
+      # 8. Backend health check
       - name: Test backend health (retry)
         run: |
           for i in {1..15}; do
-            curl -v http://localhost:3000 && exit 0
+            curl -f http://localhost:3000/api/health && exit 0
             echo "backend not ready yet... retry $i"
             sleep 3
           done
           exit 1
 
-      # 7. frontend 테스트
+      # 9. Frontend health check
       - name: Test frontend health (retry)
         run: |
           for i in {1..15}; do
-            curl -v http://localhost:8080 && exit 0
+            curl -f http://localhost:8080 && exit 0
             echo "frontend not ready yet... retry $i"
             sleep 3
           done
           exit 1
 
-      # 8. 정리
+      # 10. 정리
       - name: Stop containers
         if: always()
         run: |
-          docker stop backend frontend || true
-          docker rm backend frontend || true
+          docker stop backend frontend mongo || true
+          docker rm backend frontend mongo || true
