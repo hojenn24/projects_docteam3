@@ -14,14 +14,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 1. 이미지 pull
       - name: Pull frontend image
         run: docker pull limseongin/paw-frontend:2.0
 
       - name: Pull backend image
         run: docker pull limseongin/paw-backend:3.0
 
-      - name: Show files
-        run: ls -al
+      # 2. 컨테이너 실행 (CI용으로 백그라운드)
+      - name: Run backend container
+        run: |
+          docker run -d --name backend -p 3000:3000 limseongin/paw-backend:3.0
 
-      - name: Check containers
+      - name: Run frontend container
+        run: |
+          docker run -d --name frontend -p 8080:80 limseongin/paw-frontend:2.0
+
+      # 3. 상태 확인
+      - name: Check running containers
         run: docker ps
+
+      # 4. 간단 헬스체크 (예: HTTP 응답 확인)
+      - name: Test backend health
+        run: curl -f http://localhost:3000 || exit 1
+
+      - name: Test frontend health
+        run: curl -f http://localhost:8080 || exit 1
+
+      # 5. 정리
+      - name: Stop containers
+        if: always()
+        run: |
+          docker stop backend frontend
+          docker rm backend frontend
