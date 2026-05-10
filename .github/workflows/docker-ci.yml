@@ -22,20 +22,19 @@ jobs:
       - name: Pull frontend image
         run: docker pull limseongin/paw-frontend:2.0
 
-      # 3. Docker 네트워크 생성 (🔥 중요)
+      # 3. 네트워크 생성
       - name: Create network
-        run: docker network create app-network
+        run: docker network create app-network || true
 
-      # 4. MongoDB 실행 (같은 네트워크)
+      # 4. MongoDB 실행 (network only)
       - name: Run MongoDB
         run: |
           docker run -d \
             --name mongo \
             --network app-network \
-            -p 27017:27017 \
             mongo:7
 
-      # 5. Backend 실행 (network 기반 연결)
+      # 5. Backend 실행
       - name: Run backend container
         run: |
           docker run -d \
@@ -55,44 +54,52 @@ jobs:
             -p 8080:80 \
             limseongin/paw-frontend:2.0
 
-      # 7. 상태 확인
+      # 7. 상태 확인 (중요)
       - name: Check containers
         run: docker ps -a
+
+      # 8. 로그 (디버깅 핵심)
+      - name: Mongo logs
+        run: docker logs mongo || true
 
       - name: Backend logs
         run: docker logs backend || true
 
-      - name: Mongo logs
-        run: docker logs mongo || true
+      - name: Frontend logs
+        run: docker logs frontend || true
 
-      # 8. 서비스 대기
+      # 9. backend 실제 실행 확인 (중요)
+      - name: Check backend process inside container
+        run: docker exec backend ps aux || true
+
+      # 10. wait
       - name: Wait for services
-        run: sleep 20
+        run: sleep 25
 
-      # 9. Backend health check (핵심 수정)
+      # 11. backend health check
       - name: Test backend health (retry)
         run: |
           for i in {1..20}; do
+            echo "try $i"
             curl -f http://localhost:8000/api/facilities && exit 0
-            echo "backend not ready yet... retry $i"
             sleep 3
           done
           echo "backend failed"
           exit 1
 
-      # 10. Frontend health check
+      # 12. frontend health check
       - name: Test frontend health (retry)
         run: |
           for i in {1..20}; do
+            echo "try $i"
             curl -f http://localhost:8080 && exit 0
-            echo "frontend not ready yet... retry $i"
             sleep 3
           done
           echo "frontend failed"
           exit 1
 
-      # 11. 정리
-      - name: Stop containers
+      # 13. 정리
+      - name: Cleanup
         if: always()
         run: |
           docker stop backend frontend mongo || true
