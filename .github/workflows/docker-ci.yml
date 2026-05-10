@@ -15,33 +15,39 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Docker 이미지 pull
+      # 2. 이미지 pull
       - name: Pull backend image
         run: docker pull limseongin/paw-backend:3.0
 
       - name: Pull frontend image
         run: docker pull limseongin/paw-frontend:2.0
 
-      # 3. MongoDB 실행 (🔥 핵심 추가)
+      # 3. Docker 네트워크 생성 (🔥 중요)
+      - name: Create network
+        run: docker network create app-network
+
+      # 4. MongoDB 실행 (같은 네트워크)
       - name: Run MongoDB
         run: |
           docker run -d \
             --name mongo \
+            --network app-network \
             -p 27017:27017 \
             mongo:7
 
-      # 4. Backend 실행 (Mongo 연결 포함)
+      # 5. Backend 실행 (network 기반 연결)
       - name: Run backend container
         run: |
           docker run -d \
             --name backend \
+            --network app-network \
             -p 8000:8000 \
-            --env MONGO_HOST=host.docker.internal \
-            --env MONGO_PORT=27017 \
-            --env MONGO_DB=pet_data \
+            -e MONGO_HOST=mongo \
+            -e MONGO_PORT=27017 \
+            -e MONGO_DB=pet_data \
             limseongin/paw-backend:3.0
 
-      # 5. Frontend 실행
+      # 6. Frontend 실행
       - name: Run frontend container
         run: |
           docker run -d \
@@ -49,7 +55,7 @@ jobs:
             -p 8080:80 \
             limseongin/paw-frontend:2.0
 
-      # 6. 상태 확인 (디버깅 핵심)
+      # 7. 상태 확인
       - name: Check containers
         run: docker ps -a
 
@@ -59,33 +65,36 @@ jobs:
       - name: Mongo logs
         run: docker logs mongo || true
 
-      # 7. 서버 대기
+      # 8. 서비스 대기
       - name: Wait for services
-        run: sleep 15
+        run: sleep 20
 
-      # 8. Backend health check
+      # 9. Backend health check (핵심 수정)
       - name: Test backend health (retry)
         run: |
-          for i in {1..15}; do
-            curl -f http://localhost:8000/api/health && exit 0
+          for i in {1..20}; do
+            curl -f http://localhost:8000/api/facilities && exit 0
             echo "backend not ready yet... retry $i"
             sleep 3
           done
+          echo "backend failed"
           exit 1
 
-      # 9. Frontend health check
+      # 10. Frontend health check
       - name: Test frontend health (retry)
         run: |
-          for i in {1..15}; do
+          for i in {1..20}; do
             curl -f http://localhost:8080 && exit 0
             echo "frontend not ready yet... retry $i"
             sleep 3
           done
+          echo "frontend failed"
           exit 1
 
-      # 10. 정리
+      # 11. 정리
       - name: Stop containers
         if: always()
         run: |
           docker stop backend frontend mongo || true
           docker rm backend frontend mongo || true
+          docker network rm app-network || true
