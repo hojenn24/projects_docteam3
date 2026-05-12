@@ -1,49 +1,76 @@
-name: Docker CI
+name: CI-CD Docker Swarm Deploy
 
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
-  test:
+  build-test-deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # =========================
+      # 1. 코드 가져오기
+      # =========================
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 1. 이미지 pull
-      - name: Pull frontend image
-        run: docker pull limseongin/paw-frontend:2.0
-
-      - name: Pull backend image
-        run: docker pull limseongin/paw-backend:3.0
-
-      # 2. 컨테이너 실행 (CI용으로 백그라운드)
-      - name: Run backend container
+      # =========================
+      # 2. Docker build (핵심 변경)
+      # =========================
+      - name: Build backend image
         run: |
-          docker run -d --name backend -p 3000:3000 limseongin/paw-backend:3.0
+          docker build -t 192.168.0.215/pawdata/backend:3.1 ./backend
 
-      - name: Run frontend container
+      - name: Build frontend image
         run: |
-          docker run -d --name frontend -p 8080:80 limseongin/paw-frontend:2.0
+          docker build -t 192.168.0.215/pawdata/frontend:2.0 ./frontend
 
-      # 3. 상태 확인
-      - name: Check running containers
-        run: docker ps
-
-      # 4. 간단 헬스체크 (예: HTTP 응답 확인)
-      - name: Test backend health
-        run: curl -f http://localhost:3000 || exit 1
-
-      - name: Test frontend health
-        run: curl -f http://localhost:8080 || exit 1
-
-      # 5. 정리
-      - name: Stop containers
-        if: always()
+      # =========================
+      # 3. Registry push (Harbor or private registry)
+      # =========================
+      - name: Login to Registry
         run: |
-          docker stop backend frontend
-          docker rm backend frontend
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login 192.168.0.215:5000 -u ${{ secrets.REGISTRY_USER }} --password-stdin
+
+      - name: Push backend image
+        run: |
+          docker push 192.168.0.215/pawdata/backend:3.1
+
+      - name: Push frontend image
+        run: |
+          docker push 192.168.0.215/pawdata/frontend:2.0
+
+      # =========================
+      # 4. Swarm 배포 (핵심)
+      # =========================
+      - name: Deploy to Swarm (SSH)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.MANAGER_IP }}
+          username: kevin
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd ~/deploy
+
+            echo "🚀 Deploying stack to Swarm..."
+
+            docker stack deploy \
+              --with-registry-auth \
+              -c swarm-compose.yml paw
+
+            echo "📦 Services after deploy:"
+            docker service ls
+
+      # =========================
+      # 5. 배포 검증 (옵션)
+      # =========================
+      - name: Verify deployment via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.MANAGER_IP }}
+          username: kevin
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            docker service ps paw_backend-dashboard
+            docker service ps paw_frontend
