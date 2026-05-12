@@ -16,6 +16,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from sshtunnel import SSHTunnelForwarder
 import pandas as pd
 import os
+import glob
 
 # ════════════════════════════════════════════════════════════
 # 1. FastAPI 앱 (단 1개)
@@ -88,9 +89,6 @@ async def get_facilities():
 # 4. CSV 로드 및 전처리
 # ════════════════════════════════════════════════════════════
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CSV_PATH = os.path.join(BASE_DIR,
-    "한국문화정보원_전국 반려동물 동반 가능 문화시설 위치 데이터_20250324.csv")
-
 
 def classify_facility(place_desc: str) -> str:
     t = str(place_desc)
@@ -129,7 +127,6 @@ def assign_category(row):
     return CATEGORY_MAP.get(row["카테고리3"], "일반용품")
 
 def load_data():
-    df = pd.read_csv(CSV_PATH, encoding="utf-8-sig")
     df["4개_카테고리"] = df.apply(assign_category, axis=1)
     df = df[df["시도 명칭"] == "서울특별시"].copy()
     df = df.dropna(subset=["위도", "경도"])
