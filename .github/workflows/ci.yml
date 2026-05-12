@@ -74,3 +74,8 @@ jobs:
           script: |
             docker service ps paw_backend-dashboard
             docker service ps paw_frontend
+
+          # 하버 로그인 계정
+          env:
+          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
