@@ -88,7 +88,11 @@ async def get_facilities():
 # ════════════════════════════════════════════════════════════
 # 4. CSV 로드 및 전처리
 # ════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════
+# 4. CSV 로드 및 전처리 (glob 적용 버전)
+# ════════════════════════════════════════════════════════════
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "data")
 
 def classify_facility(place_desc: str) -> str:
     t = str(place_desc)
@@ -118,60 +122,51 @@ CATEGORY_MAP = {
     "박물관": "일반용품",   "미술관": "일반용품",
     "문예회관": "일반용품",
 }
+
 HYGIENE_KEYWORDS = ["목욕", "샴푸", "위생", "세척", "청결", "세탁", "그루밍"]
 CATEGORIES = ["의료건강", "위생", "일반용품", "미용돌봄"]
+
 
 def assign_category(row):
     if any(kw in str(row["시설명"]) for kw in HYGIENE_KEYWORDS):
         return "위생"
     return CATEGORY_MAP.get(row["카테고리3"], "일반용품")
 
+
+# 핵심: glob으로 CSV 자동 탐색
+def find_csv_file():
+    pattern = os.path.join(DATA_DIR, "*.csv")
+    files = glob.glob(pattern)
+
+    if not files:
+        raise FileNotFoundError(f"❌ CSV 파일 없음: {DATA_DIR}")
+
+    # 필요하면 정렬해서 최신/첫 파일 선택
+    files.sort()
+    print(f"📦 CSV 발견: {files}")
+    return files[0]
+
+
 def load_data():
+    csv_path = find_csv_file()
+
+    df = pd.read_csv(csv_path, encoding="utf-8-sig")
+
     df["4개_카테고리"] = df.apply(assign_category, axis=1)
     df = df[df["시도 명칭"] == "서울특별시"].copy()
+
     df = df.dropna(subset=["위도", "경도"])
     df["위도"] = pd.to_numeric(df["위도"], errors="coerce")
     df["경도"] = pd.to_numeric(df["경도"], errors="coerce")
     df = df.dropna(subset=["위도", "경도"])
-    print(f"✅ CSV 로드 완료 — 서울 시설 수: {len(df):,}")
+
+    print(f"✅ CSV 로드 완료: {csv_path}")
+    print(f"✅ 서울 시설 수: {len(df):,}")
+
     return df
 
+
 df_global = load_data()
-
-def compute_gu_scores():
-    scores = {}
-    for gu in df_global["시군구 명칭"].unique():
-        gu_df = df_global[df_global["시군구 명칭"] == gu]
-        scores[gu] = {cat: len(gu_df[gu_df["4개_카테고리"] == cat]) for cat in CATEGORIES}
-    return scores
-
-GU_RAW_COUNTS = compute_gu_scores()
-CAT_MAX = {cat: max(v[cat] for v in GU_RAW_COUNTS.values()) or 1 for cat in CATEGORIES}
-
-def build_gu_base_data():
-    """App.js BASE_DATA 구조와 동일한 형태로 반환"""
-    base = {}
-    for gu, counts in GU_RAW_COUNTS.items():
-        base[gu] = {
-            "hospital":  round(counts["의료건강"] / CAT_MAX["의료건강"] * 100, 1),
-            "park":      round(counts["일반용품"] / CAT_MAX["일반용품"] * 100, 1),
-            "transport": round(counts["미용돌봄"] / CAT_MAX["미용돌봄"] * 100, 1),
-            "quiet":     round(counts["위생"]     / CAT_MAX["위생"]     * 100, 1),
-        }
-    return base
-
-GU_BASE_DATA = build_gu_base_data()
-
-# ── 시장 분석 CSV 로드 (test.py 실행 결과물) ─────────────────
-def load_market_csv(filename):
-    path = os.path.join(BASE_DIR, filename)
-    if os.path.exists(path):
-        return pd.read_csv(path, encoding="utf-8-sig")
-    return None
-
-df_current  = load_market_csv("integrated_current.csv")
-df_compare  = load_market_csv("integrated_compare.csv")
-df_estimated= load_market_csv("integrated_estimated.csv")
 
 # ════════════════════════════════════════════════════════════
 # 5. 요청/응답 모델
