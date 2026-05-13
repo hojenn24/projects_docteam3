@@ -10,7 +10,7 @@ jobs:
 
     steps:
       # =========================
-      # 1. 코드 가져오기 + 구조 확인 (NEW)
+      # 1. 코드 가져오기 + 구조 확인
       # =========================
       - name: Checkout code
         uses: actions/checkout@v4
@@ -19,46 +19,57 @@ jobs:
         run: |
           echo "📁 Repository structure:"
           ls -la
+
           echo ""
-          echo "📁 backend-recommend contents:"
-          ls -la backend-recommend/ || echo "❌ backend-recommend not found"
+          echo "📁 Ban_backcode contents:"
+          ls -la Ban_backcode/ || echo "❌ Ban_backcode not found"
+
           echo ""
-          echo "📁 frontend contents:"
-          ls -la frontend/ || echo "❌ frontend not found"
+          echo "📁 Ban_frontcode contents:"
+          ls -la Ban_frontcode/ || echo "❌ Ban_frontcode not found"
+
           echo ""
           echo "🔍 Dockerfile check:"
           find . -name "Dockerfile" -type f
 
       # =========================
-      # 2. Docker build (수정됨)
+      # 2. Docker build
       # =========================
       - name: Build backend image
         run: |
-          echo "🚀 Building backend from backend-recommend/"
-          docker build -t 192.168.0.215/pawdata/backend:3.1 ./backend-recommend
+          echo "🚀 Building backend image..."
+          docker build \
+            -t 192.168.0.215:5000/pawdata/backend:3.1 \
+            ./Ban_backcode
 
-      - name: Build frontend image  
+      - name: Build frontend image
         run: |
-          echo "🚀 Building frontend from frontend/"
-          docker build -t 192.168.0.215/pawdata/frontend:2.0 ./frontend
+          echo "🚀 Building frontend image..."
+          docker build \
+            -t 192.168.0.215:5000/pawdata/frontend:2.0 \
+            ./Ban_frontcode
 
       # =========================
-      # 3. Registry push
+      # 3. Registry login + push
       # =========================
       - name: Login to Registry
         run: |
-          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login 192.168.0.215:5000 -u ${{ secrets.REGISTRY_USER }} --password-stdin
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login 192.168.0.215:5000 \
+            -u ${{ secrets.REGISTRY_USER }} \
+            --password-stdin
 
       - name: Push backend image
         run: |
-          docker push 192.168.0.215/pawdata/backend:3.1
+          echo "📤 Pushing backend image..."
+          docker push 192.168.0.215:5000/pawdata/backend:3.1
 
       - name: Push frontend image
         run: |
-          docker push 192.168.0.215/pawdata/frontend:2.0
+          echo "📤 Pushing frontend image..."
+          docker push 192.168.0.215:5000/pawdata/frontend:2.0
 
       # =========================
-      # 4. Swarm 배포
+      # 4. Docker Swarm 배포
       # =========================
       - name: Deploy to Swarm (SSH)
         uses: appleboy/ssh-action@v1.0.3
@@ -70,14 +81,26 @@ jobs:
             cd ~/deploy
 
             echo "🚀 Deploying stack to Swarm..."
-            echo "📦 Current services:"
-            docker service ls 2>/dev/null || echo "No services found"
 
+            echo ""
+            echo "📦 Current services:"
+            docker service ls || echo "No services found"
+
+            echo ""
+            echo "📥 Pulling latest images..."
+            docker pull 192.168.0.215:5000/pawdata/backend:3.1
+            docker pull 192.168.0.215:5000/pawdata/frontend:2.0
+
+            echo ""
+            echo "🚀 Deploy stack..."
             docker stack deploy \
               --with-registry-auth \
               -c swarm-compose.yml paw
 
+            echo ""
             echo "✅ Deploy completed"
+
+            echo ""
             echo "📦 Services after deploy:"
             docker service ls
 
@@ -92,10 +115,14 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             echo "🔍 Checking service status..."
+
+            echo ""
             docker service ls || echo "No services"
+
             echo ""
             echo "🔍 Backend service details:"
-            docker service ps paw_backend-dashboard --no-trunc || echo "Service not found"
+            docker service ps paw_backend-dashboard --no-trunc || echo "Backend service not found"
+
             echo ""
-            echo "🔍 Frontend service details:"  
-            docker service ps paw_frontend --no-trunc || echo "Service not found"
+            echo "🔍 Frontend service details:"
+            docker service ps paw_frontend --no-trunc || echo "Frontend service not found"
