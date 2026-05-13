@@ -38,7 +38,9 @@ jobs:
       - name: Build backend image
         run: |
           echo "🚀 Building backend image..."
+      
           docker build \
+            -f ./backend-recommend/Dockerfile.lite \
             -t 192.168.0.215:5000/pawdata/backend:3.1 \
             ./backend-recommend
 
