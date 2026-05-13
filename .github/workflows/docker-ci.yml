@@ -21,12 +21,12 @@ jobs:
           ls -la
 
           echo ""
-          echo "📁 Ban_backcode contents:"
-          ls -la Ban_backcode/ || echo "❌ Ban_backcode not found"
+          echo "📁 backend-recommend contents:"
+          ls -la backend-recommend/ || echo "❌ backend-recommend not found"
 
           echo ""
-          echo "📁 Ban_frontcode contents:"
-          ls -la Ban_frontcode/ || echo "❌ Ban_frontcode not found"
+          echo "📁 frontend contents:"
+          ls -la frontend/ || echo "❌ frontend not found"
 
           echo ""
           echo "🔍 Dockerfile check:"
@@ -40,14 +40,14 @@ jobs:
           echo "🚀 Building backend image..."
           docker build \
             -t 192.168.0.215:5000/pawdata/backend:3.1 \
-            ./Ban_backcode
+            ./backend-recommend
 
       - name: Build frontend image
         run: |
           echo "🚀 Building frontend image..."
           docker build \
             -t 192.168.0.215:5000/pawdata/frontend:2.0 \
-            ./Ban_frontcode
+            ./frontend
 
       # =========================
       # 3. Registry login + push
@@ -129,9 +129,9 @@ jobs:
 
             echo ""
             
-            echo "🔍 All files inside Ban_backcode:"
-            find ./Ban_backcode
+            echo "🔍 All files inside backend-recommend:"
+            find ./backend-recommend
             
             echo ""
-            echo "🔍 All files inside Ban_frontcode:"
-            find ./Ban_frontcode
+            echo "🔍 All files inside frontend:"
+            find ./frontend
