@@ -126,3 +126,12 @@ jobs:
             echo ""
             echo "🔍 Frontend service details:"
             docker service ps paw_frontend --no-trunc || echo "Frontend service not found"
+
+            echo ""
+            
+            echo "🔍 All files inside Ban_backcode:"
+            find ./Ban_backcode
+            
+            echo ""
+            echo "🔍 All files inside Ban_frontcode:"
+            find ./Ban_frontcode
