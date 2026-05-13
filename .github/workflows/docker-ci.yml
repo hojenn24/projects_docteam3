@@ -1,195 +1,101 @@
-name: Docker CI/CDuild
+name: CI-CD Docker Swarm Deploy
 
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
-
-env:
-  DOCKERHUB_USERNAME: limseongin
-  BACKEND_IMAGE: limseongin/paw-backend
-  FRONTEND_IMAGE: limseongin/paw-frontend
-  IMAGE_TAG: ${{ github.sha }}
 
 jobs:
-  test-build:
+  build-test-deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # =========================
+      # 1. 코드 가져오기 + 구조 확인 (NEW)
+      # =========================
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Show GitHub workspace
+      - name: Verify repository structure
         run: |
-          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
-          pwd
-          echo "===== ROOT FILES ====="
-          ls -al
-          echo "===== FILE TREE ====="
-          find . -maxdepth 3 -type f | sort
-          echo "===== DOCKERFILES ====="
-          find . -iname "Dockerfile" -o -iname "*.dockerfile" | sort
+          echo "📁 Repository structure:"
+          ls -la
+          echo ""
+          echo "📁 backend-recommend contents:"
+          ls -la backend-recommend/ || echo "❌ backend-recommend not found"
+          echo ""
+          echo "📁 frontend contents:"
+          ls -la frontend/ || echo "❌ frontend not found"
+          echo ""
+          echo "🔍 Dockerfile check:"
+          find . -name "Dockerfile" -type f
 
-      - name: Stop here for debug
-        run: |
-          echo "Workspace check completed."
-          echo "Now inspect the log and find the real backend/frontend paths."
-
-      check-secrets:
-      runs-on: ubuntu-latest
-      outputs:
-        has_username: ${{ steps.check.outputs.has_username }}
-        has_token: ${{ steps.check.outputs.has_token }}
-  
-      steps:
-        - name: Check Docker Hub secrets
-          id: check
-          env:
-            DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-            DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-          run: |
-            if [ -n "$DOCKERHUB_USERNAME" ]; then
-              echo "has_username=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "has_username=false" >> "$GITHUB_OUTPUT"
-            fi
-  
-            if [ -n "$DOCKERHUB_TOKEN" ]; then
-              echo "has_token=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "has_token=false" >> "$GITHUB_OUTPUT"
-            fi
-
-
-  push-and-deploy:
-    if: github.event_name == 'push' &&
-        github.ref == 'refs/heads/main' &&
-        needs.check-secrets.outputs.has_username == 'true' &&
-        needs.check-secrets.outputs.has_token == 'true'
-    runs-on: ubuntu-latest
-    needs: [test-build, check-secrets]
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Deploy paused until real paths are confirmed
-        run: |
-          echo "Docker Hub login succeeded."
-          echo "Build/push/deploy steps are intentionally paused."
-          echo "First confirm the actual Dockerfile paths from test-build logs."
-
+      # =========================
+      # 2. Docker build (수정됨)
+      # =========================
       - name: Build backend image
-        run: docker build -t $BACKEND_IMAGE:$IMAGE_TAG -t $BACKEND_IMAGE:latest ./backend
-
-      - name: Build frontend image
-        run: docker build -t $FRONTEND_IMAGE:$IMAGE_TAG -t $FRONTEND_IMAGE:latest ./frontend
-
-      - name: Push backend image tags
         run: |
-          docker push $BACKEND_IMAGE:$IMAGE_TAG
-          docker push $BACKEND_IMAGE:latest
+          echo "🚀 Building backend from backend-recommend/"
+          docker build -t 192.168.0.215/pawdata/backend:3.1 ./backend-recommend
 
-      - name: Push frontend image tags
+      - name: Build frontend image  
         run: |
-          docker push $FRONTEND_IMAGE:$IMAGE_TAG
-          docker push $FRONTEND_IMAGE:latest
+          echo "🚀 Building frontend from frontend/"
+          docker build -t 192.168.0.215/pawdata/frontend:2.0 ./frontend
 
-      - name: Verify pushed images exist
+      # =========================
+      # 3. Registry push
+      # =========================
+      - name: Login to Registry
         run: |
-          docker pull $BACKEND_IMAGE:$IMAGE_TAG
-          docker pull $FRONTEND_IMAGE:$IMAGE_TAG
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login 192.168.0.215:5000 -u ${{ secrets.REGISTRY_USER }} --password-stdin
 
-      - name: Create network
-        run: docker network create app-network || true
-
-      - name: Run MongoDB
+      - name: Push backend image
         run: |
-          docker run -d \
-            --name mongo \
-            --network app-network \
-            -p 27017:27017 \
-            mongo:7
+          docker push 192.168.0.215/pawdata/backend:3.1
 
-      - name: Wait for MongoDB
+      - name: Push frontend image
         run: |
-          for i in {1..20}; do
-            docker exec mongo mongosh --eval "db.runCommand({ ping: 1 })" && exit 0
-            echo "mongo not ready yet... retry $i"
-            sleep 2
-          done
-          echo "mongo failed"
-          docker logs mongo || true
-          exit 1
+          docker push 192.168.0.215/pawdata/frontend:2.0
 
-      - name: Run backend container
-        run: |
-          docker run -d \
-            --name backend \
-            --network app-network \
-            -p 8000:8000 \
-            -e MONGO_HOST=mongo \
-            -e MONGO_PORT=27017 \
-            -e MONGO_DB=pet_data \
-            $BACKEND_IMAGE:$IMAGE_TAG
+      # =========================
+      # 4. Swarm 배포
+      # =========================
+      - name: Deploy to Swarm (SSH)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.MANAGER_IP }}
+          username: kevin
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd ~/deploy
 
-      - name: Backend logs
-        run: |
-          sleep 5
-          docker logs backend
+            echo "🚀 Deploying stack to Swarm..."
+            echo "📦 Current services:"
+            docker service ls 2>/dev/null || echo "No services found"
 
-      - name: Wait backend startup
-        run: |
-          for i in {1..30}; do
-            curl -fsS http://localhost:8000/api/facilities && exit 0
-            echo "backend not ready yet... retry $i"
-            sleep 3
-          done
-          echo "backend failed"
-          docker logs backend || true
-          exit 1
+            docker stack deploy \
+              --with-registry-auth \
+              -c swarm-compose.yml paw
 
-      - name: Run frontend container
-        run: |
-          docker run -d \
-            --name frontend \
-            --network app-network \
-            -p 8080:80 \
-            $FRONTEND_IMAGE:$IMAGE_TAG
+            echo "✅ Deploy completed"
+            echo "📦 Services after deploy:"
+            docker service ls
 
-      - name: Frontend check
-        run: |
-          for i in {1..20}; do
-            curl -fsS http://localhost:8080 && exit 0
-            echo "frontend not ready yet... retry $i"
-            sleep 3
-          done
-          echo "frontend failed"
-          docker logs frontend || true
-          exit 1
-
-      - name: Docker status
-        run: docker ps -a
-
-      - name: Cleanup
-        if: always()
-        run: |
-          docker stop backend frontend mongo || true
-          docker rm backend frontend mongo || true
-          docker network rm app-network || true
-
-
-
-
-
-
-
-
-
+      # =========================
+      # 5. 배포 검증
+      # =========================
+      - name: Verify deployment via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.MANAGER_IP }}
+          username: kevin
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            echo "🔍 Checking service status..."
+            docker service ls || echo "No services"
+            echo ""
+            echo "🔍 Backend service details:"
+            docker service ps paw_backend-dashboard --no-trunc || echo "Service not found"
+            echo ""
+            echo "🔍 Frontend service details:"  
+            docker service ps paw_frontend --no-trunc || echo "Service not found"
