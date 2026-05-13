@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"echo Test Success"
-  },
+  "test": "echo Test Success"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",
