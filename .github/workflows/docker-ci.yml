@@ -20,6 +20,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Show GitHub workspace
+        run: |
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          pwd
+          ls -al
+          find . -maxdepth 3 -type f | sort
+
       - name: Build backend image for validation
         run: docker build -t $BACKEND_IMAGE:$IMAGE_TAG ./backend
 
@@ -140,12 +147,6 @@ jobs:
           docker rm backend frontend mongo || true
           docker network rm app-network || true
 
-          - name: Show GitHub workspace
-          run: |
-            echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
-            pwd
-            ls -al
-            find . -maxdepth 3 -type f | sort
 
 
 
