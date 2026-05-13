@@ -1,4 +1,4 @@
-name: Docker CI
+name: Docker CI/CD
 
 on:
   push:
@@ -6,27 +6,65 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  DOCKERHUB_USERNAME: limseongin
+  BACKEND_IMAGE: limseongin/paw-backend
+  FRONTEND_IMAGE: limseongin/paw-frontend
+  IMAGE_TAG: ${{ github.sha }}
+
 jobs:
-  test:
+  test-build:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 코드 체크아웃
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 이미지 pull
-      - name: Pull backend image
-        run: docker pull limseongin/paw-backend:4.0
+      - name: Build backend image for validation
+        run: docker build -t $BACKEND_IMAGE:$IMAGE_TAG ./backend
 
-      - name: Pull frontend image
-        run: docker pull limseongin/paw-frontend:3.0
+      - name: Build frontend image for validation
+        run: docker build -t $FRONTEND_IMAGE:$IMAGE_TAG ./frontend
 
-      # 3. 네트워크 생성
+  push-and-deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: test-build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build backend image
+        run: docker build -t $BACKEND_IMAGE:$IMAGE_TAG -t $BACKEND_IMAGE:latest ./backend
+
+      - name: Build frontend image
+        run: docker build -t $FRONTEND_IMAGE:$IMAGE_TAG -t $FRONTEND_IMAGE:latest ./frontend
+
+      - name: Push backend image tags
+        run: |
+          docker push $BACKEND_IMAGE:$IMAGE_TAG
+          docker push $BACKEND_IMAGE:latest
+
+      - name: Push frontend image tags
+        run: |
+          docker push $FRONTEND_IMAGE:$IMAGE_TAG
+          docker push $FRONTEND_IMAGE:latest
+
+      - name: Verify pushed images exist
+        run: |
+          docker pull $BACKEND_IMAGE:$IMAGE_TAG
+          docker pull $FRONTEND_IMAGE:$IMAGE_TAG
+
       - name: Create network
         run: docker network create app-network || true
 
-      # 4. MongoDB 실행
       - name: Run MongoDB
         run: |
           docker run -d \
@@ -35,7 +73,6 @@ jobs:
             -p 27017:27017 \
             mongo:7
 
-      # 5. MongoDB 준비 대기 (핵심)
       - name: Wait for MongoDB
         run: |
           for i in {1..20}; do
@@ -44,9 +81,9 @@ jobs:
             sleep 2
           done
           echo "mongo failed"
+          docker logs mongo || true
           exit 1
 
-      # 6. Backend 실행
       - name: Run backend container
         run: |
           docker run -d \
@@ -56,50 +93,46 @@ jobs:
             -e MONGO_HOST=mongo \
             -e MONGO_PORT=27017 \
             -e MONGO_DB=pet_data \
-            limseongin/paw-backend:3.0
+            $BACKEND_IMAGE:$IMAGE_TAG
 
-      # 7. Backend 로그 먼저 확인 (중요)
-      - name: Backend logs (debug)
+      - name: Backend logs
         run: |
           sleep 5
           docker logs backend
 
-      # 8. Backend 대기 (curl 이전에 안정화)
       - name: Wait backend startup
         run: |
           for i in {1..30}; do
-            curl -s http://localhost:8000/api/facilities && exit 0
+            curl -fsS http://localhost:8000/api/facilities && exit 0
             echo "backend not ready yet... retry $i"
             sleep 3
           done
           echo "backend failed"
-          docker logs backend
+          docker logs backend || true
           exit 1
 
-      # 9. Frontend 실행
       - name: Run frontend container
         run: |
           docker run -d \
             --name frontend \
+            --network app-network \
             -p 8080:80 \
-            limseongin/paw-frontend:2.0
+            $FRONTEND_IMAGE:$IMAGE_TAG
 
-      # 10. Frontend 확인
       - name: Frontend check
         run: |
           for i in {1..20}; do
-            curl -s http://localhost:8080 && exit 0
+            curl -fsS http://localhost:8080 && exit 0
             echo "frontend not ready yet... retry $i"
             sleep 3
           done
           echo "frontend failed"
+          docker logs frontend || true
           exit 1
 
-      # 11. 상태 확인
       - name: Docker status
         run: docker ps -a
 
-      # 12. 정리
       - name: Cleanup
         if: always()
         run: |
