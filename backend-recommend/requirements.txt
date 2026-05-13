@@ -1,0 +1,28 @@
+
+# === FastAPI 본체 ===
+fastapi==0.115.5
+uvicorn==0.32.1
+
+# === 데이터 검증 ===
+pydantic==2.10.3
+
+# === MySQL ===
+SQLAlchemy==2.0.36
+PyMySQL==1.1.1
+
+# === MongoDB ===
+motor==3.6.0
+
+# === SSH 터널 (원본 누락분 — recommend 전용) ===
+sshtunnel==0.4.0
+
+# === 데이터 처리 ===
+pandas==2.2.3
+
+# === OpenTelemetry (전체 — MariaDB + MongoDB 모두 추적) ===
+opentelemetry-distro
+opentelemetry-exporter-otlp
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-sqlalchemy
+opentelemetry-instrumentation-pymongo
+opentelemetry-instrumentation-pymysql
