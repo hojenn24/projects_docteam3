@@ -1,4 +1,4 @@
-name: Docker CI/CD
+name: Docker CI/CDuild
 
 on:
   push:
@@ -24,14 +24,17 @@ jobs:
         run: |
           echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
           pwd
+          echo "===== ROOT FILES ====="
           ls -al
+          echo "===== FILE TREE ====="
           find . -maxdepth 3 -type f | sort
+          echo "===== DOCKERFILES ====="
+          find . -iname "Dockerfile" -o -iname "*.dockerfile" | sort
 
-      - name: Build backend image for validation
-        run: docker build -t $BACKEND_IMAGE:$IMAGE_TAG ./backend
-
-      - name: Build frontend image for validation
-        run: docker build -t $FRONTEND_IMAGE:$IMAGE_TAG ./frontend
+      - name: Stop here for debug
+        run: |
+          echo "Workspace check completed."
+          echo "Now inspect the log and find the real backend/frontend paths."
 
   push-and-deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
