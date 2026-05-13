@@ -139,3 +139,18 @@ jobs:
           docker stop backend frontend mongo || true
           docker rm backend frontend mongo || true
           docker network rm app-network || true
+
+          - name: Show GitHub workspace
+          run: |
+            echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+            pwd
+            ls -al
+            find . -maxdepth 3 -type f | sort
+
+
+
+
+
+
+
+
