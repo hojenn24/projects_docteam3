@@ -57,8 +57,8 @@ jobs:
       - name: Login to Registry
         run: |
           echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login 192.168.0.215:5000 \
-            -u ${{ secrets.REGISTRY_USER }} \
-            --password-stdin
+          -u ${{ secrets.REGISTRY_USER }} \
+          --password-stdin
 
       - name: Push backend image
         run: |
