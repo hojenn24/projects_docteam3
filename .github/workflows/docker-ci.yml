@@ -40,7 +40,7 @@ jobs:
           echo "🚀 Building backend image..."
       
           docker build \
-            -f ./backend-recommend/Dockerfile.lite \
+            -f ./backend-recommend/Dockerfile \
             -t 192.168.0.215:5000/pawdata/backend:3.1 \
             ./backend-recommend
 
