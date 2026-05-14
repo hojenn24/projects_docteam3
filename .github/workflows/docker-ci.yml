@@ -4,98 +4,132 @@ on:
   push:
     branches:
       - main
+      - develop
+      - 'feature/**'
+    tags:
+      - 'v*.*.*'
+
+env:
+  REGISTRY: 192.168.0.215:5000
+  PROJECT: pawdata
 
 jobs:
-  build-test-deploy:
+  build-push:
     runs-on: self-hosted
+    outputs:
+      backend_image: ${{ steps.vars.outputs.backend_image }}
+      frontend_image: ${{ steps.vars.outputs.frontend_image }}
+      deploy_tag: ${{ steps.vars.outputs.deploy_tag }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Verify repository structure
-        run: |
-          echo "📁 Repository structure:"
-          ls -la
-
-          echo ""
-          echo "📁 backend-recommend contents:"
-          ls -la backend-recommend/ || echo "❌ backend-recommend not found"
-
-          echo ""
-          echo "📁 frontend contents:"
-          ls -la frontend/ || echo "❌ frontend not found"
-
-          echo ""
-          echo "🔍 Dockerfile check:"
-          find . -name "Dockerfile" -type f
-
-      # HTTP Harbor Registry 허용
       - name: Configure insecure Harbor registry
         run: |
-          if ! grep -q "192.168.0.215:5000" /etc/docker/daemon.json 2>/dev/null; then
-            echo '{
-              "insecure-registries": ["192.168.0.215:5000"]
-            }' | sudo tee /etc/docker/daemon.json
-
+          if ! grep -q "${REGISTRY}" /etc/docker/daemon.json 2>/dev/null; then
+            echo "{
+              \"insecure-registries\": [\"${REGISTRY}\"]
+            }" | sudo tee /etc/docker/daemon.json
             sudo systemctl restart docker
           fi
+          until docker info >/dev/null 2>&1; do sleep 1; done
 
-          until docker info >/dev/null 2>&1; do
-            sleep 1
-          done
-
-      - name: Debug Harbor secrets
+      - name: Set branch/tag variables
+        id: vars
+        shell: bash
         run: |
-          if [ -z "${{ secrets.HARBOR_USER }}" ]; then
-            echo "❌ HARBOR_USER is EMPTY"
+          SHORT_SHA=$(git rev-parse --short=12 HEAD)
+          RUN_NO="${GITHUB_RUN_NUMBER}"
+          REF_NAME="${GITHUB_REF_NAME}"
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            DEPLOY_TAG="${REF_NAME}"
+          elif [[ "${REF_NAME}" == "main" ]]; then
+            DEPLOY_TAG="main-${SHORT_SHA}-${RUN_NO}"
+          elif [[ "${REF_NAME}" == "develop" ]]; then
+            DEPLOY_TAG="develop-${SHORT_SHA}-${RUN_NO}"
           else
-            echo "✅ HARBOR_USER exists"
+            SAFE_BRANCH=$(echo "${REF_NAME}" | tr '/' '-' | tr '_' '-' | tr '[:upper:]' '[:lower:]')
+            DEPLOY_TAG="${SAFE_BRANCH}-${SHORT_SHA}-${RUN_NO}"
           fi
 
-          if [ -z "${{ secrets.HARBOR_PASSWORD }}" ]; then
-            echo "❌ HARBOR_PASSWORD is EMPTY"
-          else
-            echo "✅ HARBOR_PASSWORD exists"
-          fi
-
-          echo "HARBOR_URL=${{ secrets.HARBOR_URL }}"
+          echo "deploy_tag=${DEPLOY_TAG}" >> $GITHUB_OUTPUT
+          echo "backend_image=${REGISTRY}/${PROJECT}/backend" >> $GITHUB_OUTPUT
+          echo "frontend_image=${REGISTRY}/${PROJECT}/frontend" >> $GITHUB_OUTPUT
 
       - name: Login to Harbor
-        run: |
-          echo "${{ secrets.HARBOR_PASSWORD }}" | docker login 192.168.0.215:5000 \
-            -u "${{ secrets.HARBOR_USER }}" \
-            --password-stdin
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.HARBOR_USER }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
 
-      - name: Build backend image
-        run: |
-          echo "🚀 Building backend image..."
+      - name: Docker meta backend
+        id: meta_backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.vars.outputs.backend_image }}
+          flavor: |
+            latest=false
+          tags: |
+            type=raw,value=${{ steps.vars.outputs.deploy_tag }}
+            type=raw,value=stable,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=${{ github.ref_name }}-${{ github.sha }},enable=${{ github.ref_type == 'branch' }}
+            type=semver,pattern={{version}},enable=${{ github.ref_type == 'tag' }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ github.ref_type == 'tag' }}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.vars.outputs.deploy_tag }}
 
-          docker build \
-            -f ./backend-recommend/Dockerfile \
-            -t 192.168.0.215:5000/pawdata/backend:3.1 \
-            ./backend-recommend
+      - name: Docker meta frontend
+        id: meta_frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.vars.outputs.frontend_image }}
+          flavor: |
+            latest=false
+          tags: |
+            type=raw,value=${{ steps.vars.outputs.deploy_tag }}
+            type=raw,value=stable,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=raw,value=${{ github.ref_name }}-${{ github.sha }},enable=${{ github.ref_type == 'branch' }}
+            type=semver,pattern={{version}},enable=${{ github.ref_type == 'tag' }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ github.ref_type == 'tag' }}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.vars.outputs.deploy_tag }}
 
-      - name: Build frontend image
-        run: |
-          echo "🚀 Building frontend image..."
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend-recommend
+          file: ./backend-recommend/Dockerfile
+          push: true
+          tags: ${{ steps.meta_backend.outputs.tags }}
+          labels: ${{ steps.meta_backend.outputs.labels }}
 
-          docker build \
-            -f ./frontend/Dockerfile \
-            -t 192.168.0.215:5000/pawdata/frontend:2.0 \
-            ./frontend
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta_frontend.outputs.tags }}
+          labels: ${{ steps.meta_frontend.outputs.labels }}
 
-      - name: Push backend image
-        run: |
-          echo "📤 Pushing backend image..."
-          docker push 192.168.0.215:5000/pawdata/backend:3.1
+  deploy:
+    needs: build-push
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    runs-on: self-hosted
 
-      - name: Push frontend image
-        run: |
-          echo "📤 Pushing frontend image..."
-          docker push 192.168.0.215:5000/pawdata/frontend:2.0
-
-      - name: Deploy to Swarm (SSH)
+    steps:
+      - name: Deploy to Swarm
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.MANAGER_IP }}
@@ -104,30 +138,22 @@ jobs:
           script: |
             cd ~/deploy
 
-            echo "🚀 Deploying stack to Swarm..."
+            export BACKEND_IMAGE="${{ needs.build-push.outputs.backend_image }}:${{ needs.build-push.outputs.deploy_tag }}"
+            export FRONTEND_IMAGE="${{ needs.build-push.outputs.frontend_image }}:${{ needs.build-push.outputs.deploy_tag }}"
 
-            docker service ls || echo "No services found"
+            docker pull "$BACKEND_IMAGE"
+            docker pull "$FRONTEND_IMAGE"
 
-            docker pull 192.168.0.215:5000/pawdata/backend:3.1
-            docker pull 192.168.0.215:5000/pawdata/frontend:2.0
+            BACKEND_IMAGE="$BACKEND_IMAGE" FRONTEND_IMAGE="$FRONTEND_IMAGE" \
+            docker stack deploy --with-registry-auth -c swarm-compose.yml paw
 
-            docker stack deploy \
-              --with-registry-auth \
-              -c swarm-compose.yml paw
-
-            docker service ls
-
-      - name: Verify deployment via SSH
+      - name: Verify deployment
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.MANAGER_IP }}
           username: kevin
           key: ${{ secrets.SSH_KEY }}
           script: |
-            echo "🔍 Checking service status..."
-
-            docker service ls || echo "No services"
-
-            docker service ps paw_backend-dashboard --no-trunc || echo "Backend service not found"
-
-            docker service ps paw_frontend --no-trunc || echo "Frontend service not found"
+            docker service ls
+            docker service ps paw_backend-dashboard --no-trunc || true
+            docker service ps paw_frontend --no-trunc || true
