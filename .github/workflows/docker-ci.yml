@@ -40,14 +40,15 @@ jobs:
           echo "🚀 Building backend image..."
       
           docker build \
-            -f ./backend-recommend/Dockerfile \
-            -t 192.168.0.215:5000/pawdata/backend:3.1 \
-            ./backend-recommend
+          -f ./frontend/Dockerfile \
+          -t 192.168.0.215:5000/pawdata/frontend:2.0 \
+          ./frontend
 
       - name: Build frontend image
         run: |
           echo "🚀 Building frontend image..."
           docker build \
+            -f ./frontend/Dockerfile \
             -t 192.168.0.215:5000/pawdata/frontend:2.0 \
             ./frontend
 
