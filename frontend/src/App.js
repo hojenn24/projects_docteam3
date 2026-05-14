@@ -144,6 +144,44 @@ function makeIcon(rank, score, hovered = false) {
   });
 }
 
+function Header({ tab, SUB_TEXT }) {
+  return (
+    <div style={{ textAlign:'center', marginBottom:16 }}>
+      <div style={{
+        fontSize:60,
+        fontWeight:800,
+        color:'#1A1A1A',
+        display:'flex',
+        alignItems:'center',
+        justifyContent:'center',
+        gap:10
+      }}>
+        <img src="/MAIN.png" alt="logo" style={{ width:120, height:110, objectFit:'contain' }} />
+
+        <span style={{
+          background: 'linear-gradient(90deg, #111, #444)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          letterSpacing: '-1px'
+        }}>
+          Paw-Data AI
+        </span>
+
+        <img src="/sparkle.png" alt="sparkle" style={{ width:60, height:60 }} />
+      </div>
+
+      <p style={{
+        color:'#666',
+        fontSize:12,
+        marginTop:6,
+        fontWeight:500
+      }}>
+        {SUB_TEXT[tab]}
+      </p>
+    </div>
+  );
+}
+
 // ════════════════════════════════════════════════════════════
 // 메인 컴포넌트
 // ════════════════════════════════════════════════════════════
@@ -261,15 +299,8 @@ export default function App() {
         <button style={tabBtnStyle(tab==='market')}    onClick={() => setTab('market')}>📈 시장 분석</button>
       </div>
 
-      {/* 헤더 */}
-      <div style={{ textAlign:'center', marginBottom:16 }}>
-        <div style={{ fontSize:60, fontWeight:800, color:'#1A1A1A', display:'flex', alignItems:'center', justifyContent:'center', gap:10 }}>
-          <img src="/MAIN.png" />
-            Paw-Data 2.0
-          <img src="/sparkle.png" />
-        </div>
-        <p style={{ color:'#888', fontSize:12, marginTop:4 }}>{SUB_TEXT[tab]}</p>
-      </div>
+      {tab === 'map' && <Header ... />}
+      {tab === 'dashboard' && <Header ... />}
 
       {/* 거주지 추천 지도 */}
       {tab === 'map' && (
