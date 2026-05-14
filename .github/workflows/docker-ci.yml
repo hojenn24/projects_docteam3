@@ -1,20 +1,15 @@
+---
 name: CI-CD Docker Swarm Deploy
-
 on:
   push:
-    branches: [main]
-
+    branches:
+      - main
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
-
     steps:
-      # =========================
-      # 1. 코드 가져오기 + 구조 확인
-      # =========================
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Verify repository structure
         run: |
           echo "📁 Repository structure:"
@@ -31,19 +26,14 @@ jobs:
           echo ""
           echo "🔍 Dockerfile check:"
           find . -name "Dockerfile" -type f
-
-      # =========================
-      # 2. Docker build
-      # =========================
       - name: Build backend image
         run: |
           echo "🚀 Building backend image..."
-      
+
           docker build \
             -f ./backend-recommend/Dockerfile \
             -t 192.168.0.215:5000/pawdata/backend:3.1 \
             ./backend-recommend
-
       - name: Build frontend image
         run: |
           echo "🚀 Building frontend image..."
@@ -51,16 +41,6 @@ jobs:
             -f ./frontend/Dockerfile \
             -t 192.168.0.215:5000/pawdata/frontend:2.0 \
             ./frontend
-
-      # =========================
-      # 3. Registry login + push
-      # =========================
-      
-      # =========================
-# 3. Registry login + push
-# =========================
-
-      # Harbor Debug
       - name: Debug Harbor secrets
         run: |
           if [ -z "${{ secrets.HARBOR_USER }}" ]; then
@@ -68,34 +48,30 @@ jobs:
           else
             echo "✅ HARBOR_USER exists"
           fi
-      
+
           if [ -z "${{ secrets.HARBOR_PASSWORD }}" ]; then
             echo "❌ HARBOR_PASSWORD is EMPTY"
           else
             echo "✅ HARBOR_PASSWORD exists"
           fi
-      
+
           echo "URL=${{ secrets.HARBOR_URL }}"
-      
+
+          
       - name: Login to Harbor
-        run: |
-          echo "${{ secrets.HARBOR_PASSWORD }}" | docker login ${{ secrets.HARBOR_URL }} \
+        run: >
+          echo "${{ secrets.HARBOR_PASSWORD }}" | docker login ${{ secrets.HARBOR_URL
+          }} \
             -u "${{ secrets.HARBOR_USER }}" \
             --password-stdin
-
       - name: Push backend image
         run: |
           echo "📤 Pushing backend image..."
           docker push 192.168.0.215:5000/pawdata/backend:3.1
-
       - name: Push frontend image
         run: |
           echo "📤 Pushing frontend image..."
           docker push 192.168.0.215:5000/pawdata/frontend:2.0
-
-      # =========================
-      # 4. Docker Swarm 배포
-      # =========================
       - name: Deploy to Swarm (SSH)
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -128,35 +104,45 @@ jobs:
             echo ""
             echo "📦 Services after deploy:"
             docker service ls
-
-      # =========================
-      # 5. 배포 검증
-      # =========================
       - name: Verify deployment via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.MANAGER_IP }}
           username: kevin
           key: ${{ secrets.SSH_KEY }}
-          script: |
+          script: >
             echo "🔍 Checking service status..."
 
+
             echo ""
+
             docker service ls || echo "No services"
 
+
             echo ""
+
             echo "🔍 Backend service details:"
+
             docker service ps paw_backend-dashboard --no-trunc || echo "Backend service not found"
 
-            echo ""
-            echo "🔍 Frontend service details:"
-            docker service ps paw_frontend --no-trunc || echo "Frontend service not found"
 
             echo ""
-            
-            echo "🔍 All files inside backend-recommend:"
-            find ./backend-recommend
-            
+
+            echo "🔍 Frontend service details:"
+
+            docker service ps paw_frontend --no-trunc || echo "Frontend service not found"
+
+
             echo ""
+
+
+            echo "🔍 All files inside backend-recommend:"
+
+            find ./backend-recommend
+
+
+            echo ""
+
             echo "🔍 All files inside frontend:"
+
             find ./frontend
