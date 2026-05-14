@@ -299,8 +299,8 @@ export default function App() {
         <button style={tabBtnStyle(tab==='market')}    onClick={() => setTab('market')}>📈 시장 분석</button>
       </div>
 
-      {tab === 'map' && <Header ... />}
-      {tab === 'dashboard' && <Header ... />}
+    {/* 🔥 HEADER (여기서 tab 기반 동적 변경됨) */}
+    <Header tab={tab} SUB_TEXT={SUB_TEXT} />
 
       {/* 거주지 추천 지도 */}
       {tab === 'map' && (
