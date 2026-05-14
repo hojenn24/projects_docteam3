@@ -302,6 +302,11 @@ export default function App() {
     {/* 🔥 HEADER (여기서 tab 기반 동적 변경됨) */}
     <Header tab={tab} SUB_TEXT={SUB_TEXT} />
 
+      /* Red컬러로  */
+      <div style={{ color:'red', fontSize:20 }}>
+        HEADER TEST
+      </div>
+      
       {/* 거주지 추천 지도 */}
       {tab === 'map' && (
         <>
