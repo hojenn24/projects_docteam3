@@ -10,7 +10,7 @@ on:
       - 'v*.*.*'
 
 env:
-  REGISTRY: 192.168.0.215:5000
+  REGISTRY: 192.168.0.215
   PROJECT: pawdata
 
 jobs:
