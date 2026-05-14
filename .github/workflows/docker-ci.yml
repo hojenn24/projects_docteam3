@@ -57,9 +57,14 @@ jobs:
       # =========================
       - name: Login to Harbor
         run: |
-          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login 192.168.0.215:5000 \
-            -u "${{ secrets.REGISTRY_USER }}" \
+          echo "${{ secrets.HARBOR_PASSWORD }}" | docker login 192.168.0.215:5000 \
+            -u "${{ secrets.HARBOR_USER }}" \
             --password-stdin
+      # Harbor Debug
+      - name: Debug Harbor secrets
+        run: |
+          echo "USER=${{ secrets.HARBOR_USER }}"
+          echo "URL=${{ secrets.HARBOR_URL }}"
 
       - name: Push backend image
         run: |
