@@ -33,13 +33,17 @@ jobs:
       # HTTP Harbor Registry 허용
       - name: Configure insecure Harbor registry
         run: |
-          echo '{
-            "insecure-registries": ["192.168.0.215:5000"]
-          }' | sudo tee /etc/docker/daemon.json
+          if ! grep -q "192.168.0.215:5000" /etc/docker/daemon.json 2>/dev/null; then
+            echo '{
+              "insecure-registries": ["192.168.0.215:5000"]
+            }' | sudo tee /etc/docker/daemon.json
 
-          sudo systemctl restart docker
+            sudo systemctl restart docker
+          fi
 
-          sleep 5
+          until docker info >/dev/null 2>&1; do
+            sleep 1
+          done
 
       - name: Debug Harbor secrets
         run: |
@@ -60,7 +64,6 @@ jobs:
       - name: Login to Harbor
         run: |
           echo "${{ secrets.HARBOR_PASSWORD }}" | docker login 192.168.0.215:5000 \
-            ${{ secrets.HARBOR_URL }} \
             -u "${{ secrets.HARBOR_USER }}" \
             --password-stdin
 
@@ -85,13 +88,11 @@ jobs:
       - name: Push backend image
         run: |
           echo "📤 Pushing backend image..."
-
           docker push 192.168.0.215:5000/pawdata/backend:3.1
 
       - name: Push frontend image
         run: |
           echo "📤 Pushing frontend image..."
-
           docker push 192.168.0.215:5000/pawdata/frontend:2.0
 
       - name: Deploy to Swarm (SSH)
@@ -105,28 +106,15 @@ jobs:
 
             echo "🚀 Deploying stack to Swarm..."
 
-            echo ""
-            echo "📦 Current services:"
             docker service ls || echo "No services found"
-
-            echo ""
-            echo "📥 Pulling latest images..."
 
             docker pull 192.168.0.215:5000/pawdata/backend:3.1
             docker pull 192.168.0.215:5000/pawdata/frontend:2.0
-
-            echo ""
-            echo "🚀 Deploy stack..."
 
             docker stack deploy \
               --with-registry-auth \
               -c swarm-compose.yml paw
 
-            echo ""
-            echo "✅ Deploy completed"
-
-            echo ""
-            echo "📦 Services after deploy:"
             docker service ls
 
       - name: Verify deployment via SSH
@@ -138,15 +126,8 @@ jobs:
           script: |
             echo "🔍 Checking service status..."
 
-            echo ""
             docker service ls || echo "No services"
 
-            echo ""
-            echo "🔍 Backend service details:"
             docker service ps paw_backend-dashboard --no-trunc || echo "Backend service not found"
 
-            echo ""
-            echo "🔍 Frontend service details:"
             docker service ps paw_frontend --no-trunc || echo "Frontend service not found"
-
-           
