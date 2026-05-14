@@ -161,7 +161,7 @@ export default function App() {
 
   return (
     <div>
-      <h2 style={{ textAlign: 'center' }}>애완견동물감자</h2>
+      <h2 style={{ textAlign: 'center' }}>고구마감자</h2>
 
       {/* 슬라이더 */}
       <div style={{ padding: 20 }}>
