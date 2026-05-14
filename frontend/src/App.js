@@ -265,7 +265,7 @@ export default function App() {
       <div style={{ textAlign:'center', marginBottom:16 }}>
         <div style={{ fontSize:60, fontWeight:800, color:'#1A1A1A', display:'flex', alignItems:'center', justifyContent:'center', gap:10 }}>
           <img src="/MAIN.png" alt="강아지" style={{ width:130, height:120, objectFit:'contain' }}/>
-          Paw-Data
+          내일 발표 화이팅
           <img src="/paw-print.png" alt="" style={{ width:70, height:100, objectFit:'contain', filter:'brightness(0)' }}/>
         </div>
         <p style={{ color:'#888', fontSize:12, marginTop:4 }}>{SUB_TEXT[tab]}</p>
