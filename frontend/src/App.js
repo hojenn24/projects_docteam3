@@ -264,9 +264,9 @@ export default function App() {
       {/* 헤더 */}
       <div style={{ textAlign:'center', marginBottom:16 }}>
         <div style={{ fontSize:60, fontWeight:800, color:'#1A1A1A', display:'flex', alignItems:'center', justifyContent:'center', gap:10 }}>
-          <img src="/MAIN.png" alt="강아지" style={{ width:130, height:120, objectFit:'contain' }}/>
-          내일 발표 화이팅
-          <img src="/paw-print.png" alt="" style={{ width:70, height:100, objectFit:'contain', filter:'brightness(0)' }}/>
+          <img src="/MAIN.png" />
+            Paw-Data 2.0
+          <img src="/sparkle.png" />
         </div>
         <p style={{ color:'#888', fontSize:12, marginTop:4 }}>{SUB_TEXT[tab]}</p>
       </div>
