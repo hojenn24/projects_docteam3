@@ -30,7 +30,7 @@ FROM nginx:1.27-alpine
 
 # 1. nginx 기본 설정 제거 후 우리 설정으로 교체
 RUN rm /etc/nginx/conf.d/default.conf
-COPY frontend/nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf /etc/nginx/nginx.conf
 
 # 2. Stage 1의 빌드 결과물만 가져와서 nginx 정적 파일 위치에 복사
 COPY --from=builder /app/build /usr/share/nginx/html
